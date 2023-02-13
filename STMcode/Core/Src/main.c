@@ -45,14 +45,22 @@ DMA_HandleTypeDef hdma_adc1;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-//uint32_t adcRawData;
-//uint16_t adcDMA[20];
 typedef struct {
 	uint16_t in0;
 	uint16_t temp;
 } adcDMAStruct;
 
 adcDMAStruct adcDMA[10];
+float voltage_bit = 0;
+float voltage_lsb = 3.3/4096;
+float voltage_read = 0;
+int voltage_in = 0;
+int voltage_25 = 760;
+float AVG_Slope = 2.5; //
+float voltage_sense = 0;
+float voltage_tempBit = 0;
+float temp_C = 0;
+float temp_K = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -102,7 +110,7 @@ int main(void)
   MX_USART2_UART_Init();
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
-
+  HAL_ADC_Start_DMA(&hadc1, adcDMA, 20);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -112,8 +120,24 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  HAL_Delay(10000);
+	  	  static uint32_t timestamp = 0;
+	  	  // 1 time per 1 second || 1 time per second = 1/1 = 1 s = 1000 ms
+	  	  if(HAL_GetTick() > timestamp){
+	  		timestamp = HAL_GetTick() + 1000; // +1000 ms
+	  		voltage_bit = (adcDMA[0].in0 + adcDMA[1].in0 + adcDMA[2].in0 + adcDMA[3].in0 + adcDMA[4].in0 + adcDMA[5].in0 + adcDMA[6].in0 + adcDMA[7].in0 + adcDMA[8].in0 + adcDMA[9].in0)/10;
+	  		voltage_read = voltage_bit * voltage_lsb * 1000; //mv
+	  		voltage_in = voltage_read*2;
+
+	  		voltage_tempBit = (adcDMA[0].temp + adcDMA[1].temp + adcDMA[2].temp + adcDMA[3].temp + adcDMA[4].temp + adcDMA[5].temp + adcDMA[6].temp + adcDMA[7].temp + adcDMA[8].temp + adcDMA[9].temp)/10;
+	  		voltage_sense = voltage_tempBit * voltage_lsb * 1000; //mv
+	  		temp_C = ((voltage_sense - voltage_25)/AVG_Slope) + 25;
+	  		temp_K = temp_C + 273;
+	  	  }
+
+
   }
+
+
   /* USER CODE END 3 */
 }
 
@@ -313,9 +337,9 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) //GPIO_Pin have same value as a PIN that interrupt form.
 {
-	if(GPIO_Pin == GPIO_PIN_13) HAL_ADC_Start_DMA(&hadc1, adcDMA, 20);
+	//if(GPIO_Pin == GPIO_PIN_13) HAL_ADC_Start_DMA(&hadc1, adcDMA, 20);
 }
-void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc){
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc){ //do when ADC read ADC-DMA finished
 	//adcRawData = HAL_ADC_GetValue(&hadc1);
 }
 /* USER CODE END 4 */
